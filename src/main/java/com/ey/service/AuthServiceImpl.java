@@ -1,0 +1,100 @@
+package com.ey.service;
+ 
+import com.ey.dto.*;
+import com.ey.entity.User;
+import com.ey.entity.Role;
+import com.ey.exception.*;
+import com.ey.repository.UserRepository;
+import com.ey.security.JwtService;
+
+import java.util.Optional;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+ 
+@Service
+public class AuthServiceImpl implements AuthService {
+ 
+    private final UserRepository userRepo;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+ 
+    public AuthServiceImpl(UserRepository userRepo,
+                           PasswordEncoder passwordEncoder,
+                           JwtService jwtService) {
+        this.userRepo = userRepo;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
+    }
+ 
+    @Override
+    @Transactional
+    public RegisterResponse register(RegisterRequest request) {
+        if (userRepo.existsByEmail(request.getEmail())) {
+            throw new ConflictException("Email already exists");
+        }
+        User user = new User();
+        user.setName(request.getName());
+        user.setEmail(request.getEmail());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setRole(Role.valueOf(request.getRole()));
+        if (user.getRole() == Role.HR) {
+            // default HR status handled elsewhere or set to PENDING if needed
+        }
+        userRepo.save(user);
+        RegisterResponse resp = new RegisterResponse();
+        resp.setMessage("User registered successfully");
+        resp.setUserId(user.getId());
+        return resp;
+    }
+ 
+    @Override
+    public LoginResponse login(LoginRequest request) {
+        User user = userRepo.findByEmail(request.getEmail())
+            .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new UnauthorizedException("Invalid credentials");
+        }
+        String token = jwtService.generateToken(user.getEmail());
+        LoginResponse out = new LoginResponse();
+        out.setToken(token);
+        out.setRole(user.getRole().name());
+        out.setEmail(user.getEmail());
+        out.setMessage("Login successful");
+        return out;
+    }
+ 
+    @Override
+    @Transactional
+    public SimpleResponse forgotPassword(ForgotPasswordRequest request) {
+        Optional<User> opt = userRepo.findByEmail(request.getEmail());
+        if (opt.isEmpty()) {
+            throw new NotFoundException("User not found");
+        }
+        SimpleResponse resp = new SimpleResponse();
+        resp.setMessage("Password reset link sent to registered email");
+        return resp;
+    }
+ 
+    @Override
+    @Transactional
+    public SimpleResponse resetPassword(ResetPasswordRequest request) {
+        if (request.getToken() == null || request.getToken().isBlank()) {
+            throw new BadRequestException("Invalid or expired token");
+        }
+        SimpleResponse resp = new SimpleResponse();
+        resp.setMessage("Password reset successful");
+        return resp;
+    }
+ 
+    @Override
+    @Transactional
+    public void changePassword(String username, String oldPassword, String newPassword) {
+        User user = userRepo.findByEmail(username).orElseThrow(() -> new NotFoundException("User not found"));
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw new ForbiddenException("Old password does not match");
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepo.save(user);
+    }
+}

@@ -1,0 +1,18 @@
+package com.ey.repository;
+ 
+
+import java.util.List;
+import java.util.Optional;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import com.ey.entity.Application;
+import com.ey.entity.ApplicationStatus;
+ 
+public interface ApplicationRepository extends JpaRepository<Application, Long> {
+    List<Application> findByJobId(Long jobId);
+    List<Application> findBySeekerId(Long seekerId);
+    Optional<Application> findByJobIdAndSeekerId(Long jobId, Long seekerId);
+    boolean existsByJobIdAndSeekerId(Long jobId, Long seekerId);
+    List<Application> findByJobHrId(Long hrId);
+    List<Application> findByJobHrIdAndStatus(Long hrId, ApplicationStatus status);
+}
