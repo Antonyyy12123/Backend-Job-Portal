@@ -1,0 +1,113 @@
+package com.ey.service;
+ 
+import com.ey.dto.*;
+import com.ey.entity.User;
+import com.ey.exception.*;
+import com.ey.repository.*;
+import com.ey.security.JwtService;
+
+import java.time.Instant;
+import java.util.Optional;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+ 
+@Service
+public class AuthServiceImpl implements AuthService {
+ 
+    private final UserRepository userRepo;
+    private final CompanyRepository companyRepo;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+    // If using a PasswordResetToken entity/repo, inject it here for real reset flow.
+ 
+    public AuthServiceImpl(UserRepository userRepo,
+                           CompanyRepository companyRepo,
+                           PasswordEncoder passwordEncoder,
+                           JwtService jwtService) {
+        this.userRepo = userRepo;
+        this.companyRepo = companyRepo;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
+    }
+ 
+    @Override
+    @Transactional
+    public RegisterResponse register(RegisterRequest request) {
+        if (userRepo.existsByEmail(request.getEmail())) {
+            throw new ConflictException("Email already exists");
+        }
+        User user = new User();
+        user.setName(request.getName());
+        user.setEmail(request.getEmail());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setRole(Role.valueOf(request.getRole()));
+ 
+        if (user.getRole() == Role.HR) {
+            user.setHrStatus(com.ey.entity.HrStatus.PENDING);
+            // expects company creation/lookup outside or in request (omitted for brevity)
+        }
+        userRepo.save(user);
+        RegisterResponse resp = new RegisterResponse();
+        resp.setMessage("User registered successfully");
+        resp.setUserId(user.getId());
+        return resp;
+    }
+ 
+    @Override
+    public LoginResponse login(LoginRequest request) {
+        User user = userRepo.findByEmail(request.getEmail())
+            .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
+ 
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new UnauthorizedException("Invalid credentials");
+        }
+ 
+        if (user.getRole() == Role.HR && user.getHrStatus() != com.ey.entity.HrStatus.APPROVED) {
+            // HR can log in per your design, but jobs only publish if HR approved.
+            // If you want to block login until approval, throw ForbiddenException here.
+        }
+ 
+        String token = jwtService.generateToken(user.getEmail());
+        LoginResponse out = new LoginResponse();
+        out.setToken(token);
+        out.setRole(user.getRole().name());
+        out.setEmail(user.getEmail());
+        out.setMessage("Login successful");
+        return out;
+    }
+ 
+    @Override
+    @Transactional
+    public SimpleResponse forgotPassword(ForgotPasswordRequest request) {
+        Optional<User> opt = userRepo.findByEmail(request.getEmail());
+        if (opt.isEmpty()) {
+            throw new NotFoundException("User not found");
+        }
+        User user = opt.get();
+        // Generate reset token and send by email (implement mailing)
+        // For now simulate creating a token and return success.
+        String token = java.util.UUID.randomUUID().toString();
+        // persist token with expiry in real implementation
+        // send email with link containing token
+        SimpleResponse resp = new SimpleResponse();
+        resp.setMessage("Password reset link sent to registered email");
+        return resp;
+    }
+ 
+    @Override
+    @Transactional
+    public SimpleResponse resetPassword(ResetPasswordRequest request) {
+        // Validate token from store - omitted; assume valid for demo
+        // find user by token, then
+        // For the demo throw if token invalid
+        if (request.getToken() == null || request.getToken().isBlank()) {
+            throw new BadRequestException("Invalid or expired token");
+        }
+        // Example: find user and update password (omitted lookup)
+        // Here we can't map token->user without a store; so assume caller includes enough info in production.
+        SimpleResponse resp = new SimpleResponse();
+        resp.setMessage("Password reset successful");
+        return resp;
+    }
+}

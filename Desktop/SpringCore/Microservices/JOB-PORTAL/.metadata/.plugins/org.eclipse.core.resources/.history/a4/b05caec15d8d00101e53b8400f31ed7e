@@ -1,0 +1,5 @@
+package com.ey.dto;
+
+public class JobResponse {
+
+}

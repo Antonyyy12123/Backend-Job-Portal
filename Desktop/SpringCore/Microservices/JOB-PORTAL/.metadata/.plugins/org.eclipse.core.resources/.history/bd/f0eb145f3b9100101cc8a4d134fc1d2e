@@ -1,0 +1,78 @@
+package com.ey.service;
+ 
+import com.ey.dto.ApplicationResponse;
+import com.ey.entity.*;
+import com.ey.exception.ConflictException;
+import com.ey.exception.NotFoundException;
+import com.ey.repository.ApplicationRepository;
+import com.ey.repository.JobRepository;
+import com.ey.repository.UserRepository;
+
+ 
+import java.util.Optional;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+ 
+
+ 
+@ExtendWith(org.mockito.junit.jupiter.MockitoExtension.class)
+class ApplicationServiceImplTest {
+ 
+    @Mock ApplicationRepository appRepo;
+    @Mock JobRepository jobRepo;
+    @Mock UserRepository userRepo;
+ 
+    @InjectMocks ApplicationServiceImpl appService;
+ 
+    @Test
+    void applyToJob_happyPath() {
+        // setup current user
+        User seeker = new User();
+        seeker.setId(11L);
+        seeker.setEmail("s@e");
+        seeker.setName("S");
+        when(userRepo.findByEmail(anyString())).thenReturn(Optional.of(seeker));
+ 
+        Job job = new Job();
+        job.setId(2L);
+        job.setTitle("Dev");
+        when(jobRepo.findById(2L)).thenReturn(Optional.of(job));
+ 
+        when(appRepo.existsByJobIdAndSeekerId(2L, 11L)).thenReturn(false);
+        when(appRepo.save(any(Application.class))).thenAnswer(inv -> {
+            Application a = inv.getArgument(0);
+            a.setId(77L);
+            return a;
+        });
+ 
+        ApplicationResponse resp = appService.applyToJob(2L);
+        assertThat(resp.getId()).isEqualTo(77L);
+        assertThat(resp.getJobTitle()).isEqualTo("Dev");
+    }
+ 
+    @Test
+    void applyToJob_shouldThrowConflict_whenAlreadyApplied() {
+        User seeker = new User();
+        seeker.setId(11L);
+        when(userRepo.findByEmail(anyString())).thenReturn(Optional.of(seeker));
+        when(appRepo.existsByJobIdAndSeekerId(2L, 11L)).thenReturn(true);
+ 
+        assertThatThrownBy(() -> appService.applyToJob(2L))
+            .isInstanceOf(ConflictException.class)
+            .hasMessageContaining("Already applied");
+    }
+ 
+    @Test
+    void applyToJob_jobNotFound() {
+        User seeker = new User();
+        seeker.setId(11L);
+        when(userRepo.findByEmail(anyString())).thenReturn(Optional.of(seeker));
+        when(jobRepo.findById(2L)).thenReturn(Optional.empty());
+ 
+        assertThatThrownBy(() -> appService.applyToJob(2L))
+            .isInstanceOf(NotFoundException.class)
+            .hasMessageContaining("Job not found");
+    }
+}
+ 

@@ -1,0 +1,74 @@
+package com.ey.service;
+ 
+import com.ey.dto.RegisterRequest;
+import com.ey.entity.Role;
+import com.ey.entity.User;
+import com.ey.repository.UserRepository;
+import com.ey.security.JwtService;
+import org.junit.jupiter.api.*;
+import org.mockito.*;
+import org.springframework.security.crypto.password.PasswordEncoder;
+ 
+import java.util.Optional;
+ 
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+ 
+class AuthServiceImplTest {
+ 
+    @Mock private UserRepository userRepository;
+    @Mock private PasswordEncoder passwordEncoder;
+    @Mock private JwtService jwtService;
+ 
+    @InjectMocks private AuthServiceImpl authService; // your implementation class name
+ 
+    @BeforeEach
+    void setup() {
+        MockitoAnnotations.openMocks(this);
+    }
+ 
+    @Test
+    void register_shouldSaveUserAndReturnToken() {
+        RegisterRequest req = new RegisterRequest();
+        req.setName("John");
+        req.setEmail("john@example.com");
+        req.setPassword("pass");
+        req.setRole("SEEKER");
+ 
+        when(userRepository.existsByEmail(req.getEmail())).thenReturn(false);
+        when(passwordEncoder.encode(req.getPassword())).thenReturn("encodedPass");
+ 
+        // simulate saved user
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        when(userRepository.save(captor.capture())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(jwtService.generateToken(any())).thenReturn("mock-token");
+ 
+        var response = authService.register(req);
+ 
+        assertNotNull(response);
+        assertEquals("mock-token", response.getToken());
+ 
+        User saved = captor.getValue();
+        assertEquals("John", saved.getName());
+        assertEquals("john@example.com", saved.getEmail());
+        assertEquals("encodedPass", saved.getPassword());
+        assertEquals(Role.SEEKER, saved.getRole());
+    }
+ 
+    @Test
+    void register_existingEmail_throwsException() {
+        RegisterRequest req = new RegisterRequest();
+        req.setName("John");
+        req.setEmail("john@example.com");
+        req.setPassword("pass");
+        req.setRole("SEEKER");
+ 
+        when(userRepository.existsByEmail(req.getEmail())).thenReturn(true);
+ 
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> authService.register(req));
+        // Expect conflict exception in your implementation — adapt assertion message
+        assertTrue(ex.getMessage().toLowerCase().contains("exists") || ex.getMessage().toLowerCase().contains("email"));
+    }
+ 
+    // add other tests e.g. login happy/failure
+}

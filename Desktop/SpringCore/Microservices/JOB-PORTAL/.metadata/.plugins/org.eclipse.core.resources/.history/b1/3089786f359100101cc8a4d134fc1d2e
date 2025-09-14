@@ -1,0 +1,105 @@
+package com.ey.service;
+ 
+import com.ey.dto.LoginRequest;
+import com.ey.dto.RegisterRequest;
+import com.ey.dto.LoginResponse;
+import com.ey.entity.User;
+import com.ey.entity.Role;
+import com.ey.exception.ConflictException;
+import com.ey.exception.UnauthorizedException;
+import com.ey.repository.UserRepository;
+import com.ey.security.JwtService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.*;
+import org.springframework.security.crypto.password.PasswordEncoder;
+ 
+import java.util.Optional;
+ 
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
+ 
+@ExtendWith(org.mockito.junit.jupiter.MockitoExtension.class)
+class AuthServiceImplTest {
+ 
+    @Mock UserRepository userRepo;
+    @Mock PasswordEncoder passwordEncoder;
+    @Mock JwtService jwtService;
+ 
+    @InjectMocks AuthServiceImpl authService;
+ 
+    @BeforeEach
+    void setup() {
+        // no-op (@InjectMocks handles injection)
+    }
+ 
+    @Test
+    void register_shouldCreateUser_whenEmailNotExists() {
+        RegisterRequest req = new RegisterRequest();
+        req.setName("Alice");
+        req.setEmail("alice@example.com");
+        req.setPassword("pass");
+        req.setRole("SEEKER");
+ 
+        when(userRepo.existsByEmail(req.getEmail())).thenReturn(false);
+        when(passwordEncoder.encode(anyString())).thenReturn("encoded");
+ 
+        var resp = authService.register(req);
+ 
+        assertThat(resp).isNotNull();
+        assertThat(resp.getMessage()).contains("registered");
+        verify(userRepo, times(1)).save(any());
+    }
+ 
+    @Test
+    void register_shouldThrowConflict_whenEmailExists() {
+        RegisterRequest req = new RegisterRequest();
+        req.setEmail("exists@example.com");
+ 
+        when(userRepo.existsByEmail(req.getEmail())).thenReturn(true);
+ 
+        assertThatThrownBy(() -> authService.register(req))
+            .isInstanceOf(ConflictException.class)
+            .hasMessageContaining("Email already exists");
+    }
+ 
+    @Test
+    void login_shouldReturnToken_whenCredentialsValid() {
+        LoginRequest req = new LoginRequest();
+        req.setEmail("bob@example.com");
+        req.setPassword("pwd");
+ 
+        User u = new User();
+        u.setEmail(req.getEmail());
+        u.setPassword("encoded");
+        u.setRole(Role.SEEKER);
+ 
+        when(userRepo.findByEmail(req.getEmail())).thenReturn(Optional.of(u));
+        when(passwordEncoder.matches(req.getPassword(), u.getPassword())).thenReturn(true);
+        when(jwtService.generateToken(u.getEmail())).thenReturn("token123");
+ 
+        var out = authService.login(req);
+        assertThat(out).isNotNull();
+        assertThat(out.getToken()).isEqualTo("token123");
+        assertThat(out.getRole()).isEqualTo("SEEKER");
+    }
+ 
+    @Test
+    void login_shouldThrowUnauthorized_whenInvalidPassword() {
+        LoginRequest req = new LoginRequest();
+        req.setEmail("bob@example.com");
+        req.setPassword("bad");
+ 
+        User u = new User();
+        u.setEmail(req.getEmail());
+        u.setPassword("encoded");
+ 
+        when(userRepo.findByEmail(req.getEmail())).thenReturn(Optional.of(u));
+        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(false);
+ 
+        assertThatThrownBy(() -> authService.login(req))
+            .isInstanceOf(UnauthorizedException.class)
+            .hasMessageContaining("Invalid credentials");
+    }
+}

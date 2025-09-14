@@ -1,0 +1,93 @@
+package com.ey.service;
+ 
+import com.ey.dto.RegisterRequest;
+import com.ey.dto.LoginRequest;
+import com.ey.dto.AuthResponse;
+import com.ey.entity.Role;
+import com.ey.entity.User;
+import com.ey.repository.UserRepository;
+import com.ey.security.JwtService;
+ 
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.springframework.security.crypto.password.PasswordEncoder;
+ 
+import java.util.Optional;
+ 
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+ 
+class AuthServiceImplTest {
+ 
+    @Mock private UserRepository userRepository;
+    @Mock private PasswordEncoder passwordEncoder;
+    @Mock private JwtService jwtService;
+ 
+    @InjectMocks private AuthServiceImpl authService;
+ 
+    @BeforeEach
+    void setup() {
+        MockitoAnnotations.openMocks(this);
+    }
+ 
+    @Test
+    void testRegisterSuccess() {
+        RegisterRequest req = new RegisterRequest();
+        req.setName("John");
+        req.setEmail("john@example.com");
+        req.setPassword("password");
+        req.setRole("SEEKER");
+ 
+        when(userRepository.existsByEmail(req.getEmail())).thenReturn(false);
+        when(passwordEncoder.encode("password")).thenReturn("encodedPass");
+        when(jwtService.generateToken(any(User.class))).thenReturn("fake-jwt-token");
+ 
+        AuthResponse response = authService.register(req);
+ 
+        assertNotNull(response);
+        assertEquals("fake-jwt-token", response.getToken());
+        verify(userRepository).save(any(User.class));
+    }
+ 
+    @Test
+    void testRegisterDuplicateEmailThrowsConflict() {
+        RegisterRequest req = new RegisterRequest();
+        req.setEmail("duplicate@example.com");
+ 
+        when(userRepository.existsByEmail(req.getEmail())).thenReturn(true);
+ 
+        assertThrows(RuntimeException.class, () -> authService.register(req));
+    }
+ 
+    @Test
+    void testLoginSuccess() {
+        LoginRequest req = new LoginRequest("john@example.com", "password");
+        User user = new User();
+        user.setEmail("john@example.com");
+        user.setPassword("encodedPass");
+ 
+        when(userRepository.findByEmail(req.getEmail())).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("password", "encodedPass")).thenReturn(true);
+        when(jwtService.generateToken(user)).thenReturn("jwt-token");
+ 
+        AuthResponse response = authService.login(req);
+ 
+        assertEquals("jwt-token", response.getToken());
+    }
+ 
+    @Test
+    void testLoginInvalidPassword() {
+        LoginRequest req = new LoginRequest("john@example.com", "wrongPass");
+        User user = new User();
+        user.setEmail("john@example.com");
+        user.setPassword("encodedPass");
+ 
+        when(userRepository.findByEmail(req.getEmail())).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("wrongPass", "encodedPass")).thenReturn(false);
+ 
+        assertThrows(RuntimeException.class, () -> authService.login(req));
+    }
+}

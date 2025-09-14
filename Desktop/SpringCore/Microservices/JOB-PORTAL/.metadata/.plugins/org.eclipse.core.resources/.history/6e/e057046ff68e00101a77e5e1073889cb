@@ -1,0 +1,76 @@
+package com.ey.security;
+ 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import java.security.Key;
+import java.util.Date;
+import java.util.function.Function;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Service;
+ 
+@Service
+public class JwtService {
+ 
+    private final Key key;
+    private final long expirationMillis;
+ 
+    public JwtService(@Value("${jwt.secret}") String secret,
+                      @Value("${jwt.expirationMillis:86400000}") long expirationMillis) {
+        this.key = Keys.hmacShaKeyFor(secret.getBytes());  // generates HMAC key
+        this.expirationMillis = expirationMillis;
+    }
+ 
+    // Generate a JWT token for a given username/email
+    public String generateToken(String username) {
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + expirationMillis);
+        return Jwts.builder()
+                .setSubject(username)
+                .setIssuedAt(now)
+                .setExpiration(expiry)
+                .signWith(key)
+                .compact();
+    }
+ 
+    // Extract username (subject) from JWT
+    public String extractUsername(String token) {
+        return extractClaim(token, Claims::getSubject);
+    }
+ 
+    // Extract a custom claim
+    public <T> T extractClaim(String token, Function<Claims, T> resolver) {
+        Claims claims = parseClaims(token);
+        return resolver.apply(claims);
+    }
+ 
+    // Validate if token belongs to the given user and is not expired
+    public boolean isTokenValid(String token, UserDetails userDetails) {
+        final String username = extractUsername(token);
+        return username != null &&
+               username.equals(userDetails.getUsername()) &&
+               !isTokenExpired(token);
+    }
+ 
+    // Check expiration
+    private boolean isTokenExpired(String token) {
+        Date exp = extractClaim(token, Claims::getExpiration);
+        return exp.before(new Date());
+    }
+ 
+    // Parse claims safely
+    private Claims parseClaims(String token) {
+        try {
+            return Jwts.parserBuilder()
+                       .setSigningKey(key)
+                       .build()
+                       .parseClaimsJws(token)
+                       .getBody();
+        } catch (JwtException e) {
+            throw new RuntimeException("Invalid JWT token", e);
+        }
+    }
+}
+ 

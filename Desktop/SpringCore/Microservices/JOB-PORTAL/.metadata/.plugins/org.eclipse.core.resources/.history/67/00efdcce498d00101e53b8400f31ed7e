@@ -1,0 +1,13 @@
+package com.ey.dto;
+
+import java.math.BigDecimal;
+import java.util.List;
+
+public class JobCreateRequest {
+	private String title;
+	private String description;
+	private String location;
+	private BigDecimal salary;
+	private List<String> requirements;
+
+}

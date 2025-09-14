@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename type &apos;com.ey.dto.ForgetPasswordRequest&apos; to &apos;ForgotPasswordRequest&apos;&#x0D;&#x0A;- Original project: &apos;job-portal&apos;&#x0D;&#x0A;- Original element: &apos;com.ey.dto.ForgetPasswordRequest&apos;&#x0D;&#x0A;- Renamed element: &apos;com.ey.dto.ForgotPasswordRequest&apos;&#x0D;&#x0A;- Update references to refactored element&#x0D;&#x0A;- Update textual occurrences in comments and strings" description="Rename type &apos;ForgetPasswordRequest&apos;" flags="589830" id="org.eclipse.jdt.ui.rename.type" input="/src\/main\/java=/optional=/true=/=/maven.pomderived=/true=/&lt;com.ey.dto{ForgetPasswordRequest.java[ForgetPasswordRequest" matchStrategy="1" name="ForgotPasswordRequest" qualified="false" references="true" similarDeclarations="false" stamp="1757402362190" textual="false" version="1.0"/>
+</session>

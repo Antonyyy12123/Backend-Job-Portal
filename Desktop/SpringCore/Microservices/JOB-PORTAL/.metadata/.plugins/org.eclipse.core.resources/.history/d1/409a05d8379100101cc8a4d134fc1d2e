@@ -1,0 +1,89 @@
+package com.ey.service;
+ 
+import com.ey.dto.JobCreateRequest;
+import com.ey.dto.JobResponse;
+import com.ey.entity.*;
+import com.ey.exception.ForbiddenException;
+import com.ey.exception.NotFoundException;
+import com.ey.repository.CompanyRepository;
+import com.ey.repository.JobRepository;
+import com.ey.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.*;
+ 
+import java.math.BigDecimal;
+import java.util.Optional;
+import java.util.List;
+ 
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.Mockito.*;
+ 
+@ExtendWith(org.mockito.junit.jupiter.MockitoExtension.class)
+class JobServiceImplTest {
+ 
+    @Mock JobRepository jobRepo;
+    @Mock UserRepository userRepo;
+    @Mock CompanyRepository companyRepo;
+ 
+    @InjectMocks JobServiceImpl jobService;
+ 
+    @Test
+    void createJob_shouldThrowWhenNotHr() {
+        // simulate non-HR current user by mocking SecurityContextHolder via userRepo.findByEmail used by service
+        User normal = new User();
+        normal.setRole(Role.SEEKER);
+        when(userRepo.findByEmail(anyString())).thenReturn(Optional.of(normal));
+ 
+        JobCreateRequest req = new JobCreateRequest();
+        req.setTitle("X");
+ 
+        // expect ForbiddenException
+        assertThatThrownBy(() -> jobService.createJob(req))
+            .isInstanceOf(ForbiddenException.class);
+    }
+ 
+    @Test
+    void createJob_shouldSetApproved_ifHrApproved() {
+        User hr = new User();
+        hr.setId(10L);
+        hr.setRole(Role.HR);
+        hr.setHrStatus(HrStatus.APPROVED);
+        Company company = new Company();
+        company.setId(5L);
+        hr.setCompany(company);
+ 
+        when(userRepo.findByEmail(anyString())).thenReturn(Optional.of(hr));
+        when(companyRepo.findById(anyLong())).thenReturn(Optional.of(company)); // not used but safe
+ 
+        JobCreateRequest req = new JobCreateRequest();
+        req.setTitle("Backend Dev");
+        req.setDescription("desc");
+        req.setLocation("remote");
+        req.setSalary(BigDecimal.valueOf(5000));
+ 
+        when(jobRepo.save(any(Job.class))).thenAnswer(inv -> {
+            Job j = inv.getArgument(0);
+            j.setId(99L);
+            return j;
+        });
+ 
+        JobResponse resp = jobService.createJob(req);
+        assertThat(resp.getTitle()).isEqualTo("Backend Dev");
+        assertThat(resp.getStatus()).isEqualTo(JobStatus.APPROVED.name());
+    }
+ 
+    @Test
+    void getApprovedJobs_returnsList() {
+        Job j = new Job();
+        j.setId(1L);
+        j.setTitle("a");
+        j.setStatus(JobStatus.APPROVED);
+ 
+        when(jobRepo.findByStatus(JobStatus.APPROVED)).thenReturn(List.of(j));
+        var list = jobService.getApprovedJobs();
+        assertThat(list).hasSize(1);
+        assertThat(list.get(0).getId()).isEqualTo(1L);
+    }
+}

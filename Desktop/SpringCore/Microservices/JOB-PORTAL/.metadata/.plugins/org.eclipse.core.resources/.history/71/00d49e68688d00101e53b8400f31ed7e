@@ -1,0 +1,10 @@
+package com.ey.entity;
+
+public enum JobStatus {
+	
+	PENDING,
+	APPROVED,
+	REJECTED,
+	CLOSED
+
+}
