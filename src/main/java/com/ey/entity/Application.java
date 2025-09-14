@@ -28,6 +28,10 @@ public class Application {
 	@OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<Interview> interviews;
 
+	// NEW: store resume file path (local path or URL)
+	@Column(name = "resume_path")
+	private String resumePath;
+
 	public Long getId() {
 		return id;
 	}
@@ -74,5 +78,13 @@ public class Application {
 
 	public void setInterviews(List<Interview> interviews) {
 		this.interviews = interviews;
+	}
+
+	public String getResumePath() {
+		return resumePath;
+	}
+
+	public void setResumePath(String resumePath) {
+		this.resumePath = resumePath;
 	}
 }

@@ -3,10 +3,11 @@ package com.ey.service;
 import com.ey.dto.*;
 import com.ey.entity.User;
 import com.ey.entity.Role;
+import com.ey.entity.HrStatus;
 import com.ey.exception.*;
 import com.ey.repository.UserRepository;
 import com.ey.security.JwtService;
-
+ 
 import java.util.Optional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -30,18 +31,40 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
+        if (request == null) throw new BadRequestException("Request body is required");
+ 
+        if (request.getRole() == null || request.getRole().isBlank()) {
+            throw new BadRequestException("Role is required");
+        }
+ 
+        // Normalize role (allow lower/upper case)
+        String roleStr = request.getRole().trim().toUpperCase();
+ 
+        Role role;
+        try {
+            role = Role.valueOf(roleStr);
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException("Invalid role. Allowed values: SEEKER, HR, ADMIN");
+        }
+ 
         if (userRepo.existsByEmail(request.getEmail())) {
             throw new ConflictException("Email already exists");
         }
+ 
         User user = new User();
         user.setName(request.getName());
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setRole(Role.valueOf(request.getRole()));
-        if (user.getRole() == Role.HR) {
-            // default HR status handled elsewhere or set to PENDING if needed
+        user.setRole(role);
+ 
+        // IMPORTANT FIX: initialize hrStatus for HR users so admin endpoints that
+        // query for HrStatus.PENDING will include newly-registered HRs.
+        if (role == Role.HR) {
+            user.setHrStatus(HrStatus.PENDING);
         }
+ 
         userRepo.save(user);
+ 
         RegisterResponse resp = new RegisterResponse();
         resp.setMessage("User registered successfully");
         resp.setUserId(user.getId());

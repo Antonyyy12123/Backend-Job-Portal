@@ -1,0 +1,126 @@
+package com.ey.controller;
+ 
+import com.ey.dto.SimpleResponse;
+import com.ey.entity.User;
+import com.ey.exception.NotFoundException;
+import com.ey.repository.UserRepository;
+import com.ey.service.FileStorageService;
+import org.springframework.core.io.PathResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+ 
+import java.nio.file.Path;
+import java.nio.file.Paths;
+ 
+@RestController
+@RequestMapping("/api/v1/users")
+public class UserController {
+ 
+    private final UserRepository userRepo;
+    private final FileStorageService storage;
+ 
+    public UserController(UserRepository userRepo, FileStorageService storage) {
+        this.userRepo = userRepo;
+        this.storage = storage;
+    }
+ 
+    /**
+     * Upload profile image (SEEKERS only).
+     * Request: PUT /api/v1/users/profile-image
+     * Body: form-data, key "file" (type: File)
+     */
+    @PutMapping("/profile-image")
+    @PreAuthorize("hasRole('SEEKER')")
+    public ResponseEntity<?> uploadProfileImage(@RequestParam("file") MultipartFile file, Authentication auth) {
+        String email = auth.getName();
+        User u = userRepo.findByEmail(email).orElseThrow(() -> new NotFoundException("User not found"));
+ 
+        if (file == null || file.isEmpty()) {
+            SimpleResponse err = new SimpleResponse();
+            err.setMessage("No file uploaded");
+            return ResponseEntity.badRequest().body(err);
+        }
+ 
+        String filename = storage.storeFile(file, u.getId());
+        u.setProfileImage(filename);
+        userRepo.save(u);
+ 
+        SimpleResponse resp = new SimpleResponse();
+        resp.setMessage("Profile image uploaded");
+        return ResponseEntity.ok(resp);
+    }
+ 
+    /**
+     * Get my own profile image (authenticated user).
+     * Request: GET /api/v1/users/me/profile-image
+     * Returns the image inline (so browsers/Postman preview it).
+     */
+    @GetMapping("/me/profile-image")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> getMyProfileImage(Authentication auth) {
+        String email = auth.getName();
+        User u = userRepo.findByEmail(email).orElseThrow(() -> new NotFoundException("User not found"));
+ 
+        if (u.getProfileImage() == null) {
+            return ResponseEntity.noContent().build();
+        }
+ 
+        Path file = Paths.get("uploads").resolve(u.getProfileImage()).normalize();
+        Resource resource = new PathResource(file);
+        if (!resource.exists() || !resource.isReadable()) {
+            throw new NotFoundException("Profile image not found");
+        }
+ 
+        String filename = u.getProfileImage();
+        String contentType = detectContentType(filename);
+ 
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                .contentType(MediaType.parseMediaType(contentType))
+                .body(resource);
+    }
+ 
+    /**
+     * HR/Admin: View a specific seeker's profile image by userId.
+     * Request: GET /api/v1/users/{seekerId}/profile-image
+     */
+    @GetMapping("/{seekerId}/profile-image")
+    @PreAuthorize("hasRole('HR') or hasRole('ADMIN')")
+    public ResponseEntity<?> getSeekerProfileImage(@PathVariable Long seekerId) {
+        User seeker = userRepo.findById(seekerId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+ 
+        if (seeker.getProfileImage() == null) {
+            return ResponseEntity.noContent().build();
+        }
+ 
+        Path file = Paths.get("uploads").resolve(seeker.getProfileImage()).normalize();
+        Resource resource = new PathResource(file);
+        if (!resource.exists() || !resource.isReadable()) {
+            throw new NotFoundException("Profile image not found");
+        }
+ 
+        String filename = seeker.getProfileImage();
+        String contentType = detectContentType(filename);
+ 
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
+                .contentType(MediaType.parseMediaType(contentType))
+                .body(resource);
+    }
+ 
+    // small helper to map extension -> MIME type
+    private String detectContentType(String filename) {
+        String lower = filename.toLowerCase();
+        if (lower.endsWith(".png")) return "image/png";
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+        if (lower.endsWith(".gif")) return "image/gif";
+        return MediaType.APPLICATION_OCTET_STREAM_VALUE;
+    }
+}

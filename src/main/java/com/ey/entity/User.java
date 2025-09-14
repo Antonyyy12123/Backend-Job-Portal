@@ -14,8 +14,17 @@ public class User {
  
     @Column(unique = true, nullable = false)
     private String email;
+    
+    @Column(name="profile_image")
+    private String profileImage;
  
-    private String password;
+    public String getProfileImage() {
+		return profileImage;
+	}
+	public void setProfileImage(String profileImage) {
+		this.profileImage = profileImage;
+	}
+	private String password;
  
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
