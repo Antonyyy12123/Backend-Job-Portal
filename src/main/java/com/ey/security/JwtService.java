@@ -23,7 +23,7 @@ public class JwtService {
         this.expirationMillis = expirationMillis;
     }
  
-    // Generate a JWT token for a given username/email
+    
     public String generateToken(String username) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMillis);
