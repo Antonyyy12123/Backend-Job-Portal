@@ -1,5 +1,4 @@
 package com.ey.repository;
- 
 
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -8,19 +7,22 @@ import org.springframework.data.repository.query.Param;
 
 import com.ey.entity.Job;
 import com.ey.entity.JobStatus;
- 
+
 public interface JobRepository extends JpaRepository<Job, Long> {
-    List<Job> findByHrIdOrderByCreatedAtDesc(Long hrId);
-    List<Job> findByCompanyId(Long companyId);
-    List<Job> findByStatus(JobStatus status);
-    List<Job> findByTitleContainingIgnoreCaseOrLocationContainingIgnoreCase(String title, String location);
- 
-    @Query("""
-      select distinct j from Job j
-      join j.requirements r
-      where lower(r.requirement) like lower(concat('%', :skill, '%'))
-    """)
-    List<Job> findByRequirementContaining(@Param("skill") String skill);
- 
-    List<Job> findByHrIdAndStatus(Long hrId, JobStatus status);
+	List<Job> findByHrIdOrderByCreatedAtDesc(Long hrId);
+
+	List<Job> findByCompanyId(Long companyId);
+
+	List<Job> findByStatus(JobStatus status);
+
+	List<Job> findByTitleContainingIgnoreCaseOrLocationContainingIgnoreCase(String title, String location);
+
+	@Query("""
+			  select distinct j from Job j
+			  join j.requirements r
+			  where lower(r.requirement) like lower(concat('%', :skill, '%'))
+			""")
+	List<Job> findByRequirementContaining(@Param("skill") String skill);
+
+	List<Job> findByHrIdAndStatus(Long hrId, JobStatus status);
 }

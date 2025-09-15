@@ -1,11 +1,10 @@
 package com.ey.repository;
- 
 
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.ey.entity.JobRequirement;
- 
+
 public interface JobRequirementRepository extends JpaRepository<JobRequirement, Long> {
-    List<JobRequirement> findByJobId(Long jobId);
+	List<JobRequirement> findByJobId(Long jobId);
 }

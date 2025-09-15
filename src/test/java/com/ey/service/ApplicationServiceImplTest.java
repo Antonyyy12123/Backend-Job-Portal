@@ -23,11 +23,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-/**
- * Unit tests for ApplicationServiceImpl
- * - Use SecurityContextImpl (real) to avoid Mockito stubbings on SecurityContext
- * - Each test stubs only the repository calls it needs
- */
+
 @ExtendWith(MockitoExtension.class)
 class ApplicationServiceImplTest {
 
@@ -43,7 +39,7 @@ class ApplicationServiceImplTest {
         String uploadDir = tempDir.toAbsolutePath().toString();
         appService = new ApplicationServiceImpl(appRepo, jobRepo, userRepo, uploadDir);
 
-        // Use a real SecurityContextImpl with a UsernamePasswordAuthenticationToken (no Mockito stubbing)
+      
         SecurityContextImpl ctx = new SecurityContextImpl();
         ctx.setAuthentication(new UsernamePasswordAuthenticationToken("seeker@example.com", null));
         SecurityContextHolder.setContext(ctx);
@@ -96,7 +92,7 @@ class ApplicationServiceImplTest {
 
     @Test
     void updateStatus_asHR_success() {
-        // Switch authentication to HR by putting a new SecurityContextImpl
+        
         SecurityContextImpl hrCtx = new SecurityContextImpl();
         hrCtx.setAuthentication(new UsernamePasswordAuthenticationToken("hr@example.com", null));
         SecurityContextHolder.setContext(hrCtx);
@@ -136,7 +132,7 @@ class ApplicationServiceImplTest {
 
     @Test
     void updateStatus_asSeeker_throwsForbidden() {
-        // default context is seeker (setUp handles this)
+
         User seeker = new User();
         seeker.setId(1L);
         seeker.setEmail("seeker@example.com");

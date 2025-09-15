@@ -11,23 +11,27 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/v1/interviews")
 public class InterviewController {
 
-    private final InterviewService interviewService;
-    public InterviewController(InterviewService interviewService) { this.interviewService = interviewService; }
+	private final InterviewService interviewService;
 
-    @PostMapping("/applications/{applicationId}")
-    @PreAuthorize("hasRole('HR')")
-    public ResponseEntity<?> schedule(@PathVariable Long applicationId, @Valid @RequestBody InterviewRequest request) {
-        return ResponseEntity.status(201).body(interviewService.schedule(applicationId, request));
-    }
+	public InterviewController(InterviewService interviewService) {
+		this.interviewService = interviewService;
+	}
 
-    @PutMapping("/{id}")
-    @PreAuthorize("hasRole('HR')")
-    public ResponseEntity<?> reschedule(@PathVariable Long id, @Valid @RequestBody InterviewRequest request) {
-        return ResponseEntity.ok(interviewService.reschedule(id, request));
-    }
+	@PostMapping("/applications/{applicationId}")
+	@PreAuthorize("hasRole('HR')")
+	public ResponseEntity<?> schedule(@PathVariable Long applicationId, @Valid @RequestBody InterviewRequest request) {
+		return ResponseEntity.status(201).body(interviewService.schedule(applicationId, request));
+	}
 
-    @GetMapping("/my")
-    public ResponseEntity<?> myInterviews() {
-        return ResponseEntity.ok(interviewService.getMyInterviews());
-    }
+	@PutMapping("/{id}")
+	@PreAuthorize("hasRole('HR')")
+	public ResponseEntity<?> reschedule(@PathVariable Long id, @Valid @RequestBody InterviewRequest request) {
+		return ResponseEntity.ok(interviewService.reschedule(id, request));
+	}
+
+	@GetMapping("/my")
+	public ResponseEntity<?> myInterviews() {
+		return ResponseEntity.ok(interviewService.getMyInterviews());
+	}
+	
 }

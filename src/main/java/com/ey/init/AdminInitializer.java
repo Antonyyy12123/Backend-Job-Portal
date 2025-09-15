@@ -27,7 +27,7 @@ public class AdminInitializer implements ApplicationRunner {
  
     @Override
     public void run(ApplicationArguments args) {
-        Optional<User> existing = userRepository.findByEmail("admin");
+        Optional<User> existing = userRepository.findByEmail("admin@gmail.com");
         if (existing.isEmpty()) {
             User admin = new User();
             admin.setName("Administrator");

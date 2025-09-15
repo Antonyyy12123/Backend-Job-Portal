@@ -44,7 +44,6 @@ public class Interview {
 	@JoinColumn(name = "interviewer_id")
 	private User interviewer;
 
-	// getters & setters
 	public Long getId() {
 		return id;
 	}

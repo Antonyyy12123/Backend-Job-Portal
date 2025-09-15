@@ -28,7 +28,7 @@ public class Application {
 	@OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
 	private List<Interview> interviews;
 
-	// NEW: store resume file path (local path or URL)
+
 	@Column(name = "resume_path")
 	private String resumePath;
 

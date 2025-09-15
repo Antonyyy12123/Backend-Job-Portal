@@ -26,78 +26,78 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-/**
- * Clean JobServiceImpl tests: use SecurityContextImpl to avoid Mockito stubbing of SecurityContext.
- */
 @ExtendWith(MockitoExtension.class)
 class JobServiceImplTest {
 
-    @Mock private JobRepository jobRepo;
-    @Mock private UserRepository userRepo;
-    @Mock private CompanyRepository companyRepo;
+	@Mock
+	private JobRepository jobRepo;
+	@Mock
+	private UserRepository userRepo;
+	@Mock
+	private CompanyRepository companyRepo;
 
-    @InjectMocks
-    private JobServiceImpl jobService;
+	@InjectMocks
+	private JobServiceImpl jobService;
 
-    @BeforeEach
-    void setUp() {
-        // default: put a SecurityContextImpl with HR email (tests can override)
-        SecurityContextImpl ctx = new SecurityContextImpl();
-        ctx.setAuthentication(new UsernamePasswordAuthenticationToken("hr@example.com", null));
-        SecurityContextHolder.setContext(ctx);
-    }
+	@BeforeEach
+	void setUp() {
 
-    @Test
-    void createJob_asHR_success() {
-        // prepare HR user
-        User hr = new User();
-        hr.setId(1L);
-        hr.setEmail("hr@example.com");
-        hr.setRole(Role.HR);
-        hr.setHrStatus(HrStatus.APPROVED);
-        Company company = new Company();
-        company.setId(10L);
-        hr.setCompany(company);
+		SecurityContextImpl ctx = new SecurityContextImpl();
+		ctx.setAuthentication(new UsernamePasswordAuthenticationToken("hr@example.com", null));
+		SecurityContextHolder.setContext(ctx);
+	}
 
-        when(userRepo.findByEmail("hr@example.com")).thenReturn(Optional.of(hr));
-        when(jobRepo.save(any(Job.class))).thenAnswer(inv -> {
-            Job j = inv.getArgument(0);
-            j.setId(100L);
-            return j;
-        });
+	@Test
+	void createJob_asHR_success() {
 
-        JobCreateRequest req = new JobCreateRequest();
-        req.setTitle("Java Developer");
-        req.setDescription("Backend dev role");
-        req.setLocation("Remote");
-        req.setSalary(new BigDecimal("60000"));
+		User hr = new User();
+		hr.setId(1L);
+		hr.setEmail("hr@example.com");
+		hr.setRole(Role.HR);
+		hr.setHrStatus(HrStatus.APPROVED);
+		Company company = new Company();
+		company.setId(10L);
+		hr.setCompany(company);
 
-        var resp = jobService.createJob(req);
+		when(userRepo.findByEmail("hr@example.com")).thenReturn(Optional.of(hr));
+		when(jobRepo.save(any(Job.class))).thenAnswer(inv -> {
+			Job j = inv.getArgument(0);
+			j.setId(100L);
+			return j;
+		});
 
-        assertEquals("Java Developer", resp.getTitle());
-        assertEquals("APPROVED", resp.getStatus());
-        verify(jobRepo, times(1)).save(any(Job.class));
-    }
+		JobCreateRequest req = new JobCreateRequest();
+		req.setTitle("Java Developer");
+		req.setDescription("Backend dev role");
+		req.setLocation("Remote");
+		req.setSalary(new BigDecimal("60000"));
 
-    @Test
-    void createJob_asNonHR_throwsForbidden() {
-        // place seeker in security context
-        SecurityContextImpl seekerCtx = new SecurityContextImpl();
-        seekerCtx.setAuthentication(new UsernamePasswordAuthenticationToken("seeker@example.com", null));
-        SecurityContextHolder.setContext(seekerCtx);
+		var resp = jobService.createJob(req);
 
-        User seeker = new User();
-        seeker.setEmail("seeker@example.com");
-        seeker.setRole(Role.SEEKER);
+		assertEquals("Java Developer", resp.getTitle());
+		assertEquals("APPROVED", resp.getStatus());
+		verify(jobRepo, times(1)).save(any(Job.class));
+	}
 
-        when(userRepo.findByEmail("seeker@example.com")).thenReturn(Optional.of(seeker));
+	@Test
+	void createJob_asNonHR_throwsForbidden() {
 
-        JobCreateRequest req = new JobCreateRequest();
-        req.setTitle("Python Developer");
-        req.setDescription("Backend role");
-        req.setLocation("Remote");
-        req.setSalary(new BigDecimal("70000"));
+		SecurityContextImpl seekerCtx = new SecurityContextImpl();
+		seekerCtx.setAuthentication(new UsernamePasswordAuthenticationToken("seeker@example.com", null));
+		SecurityContextHolder.setContext(seekerCtx);
 
-        assertThrows(ForbiddenException.class, () -> jobService.createJob(req));
-    }
+		User seeker = new User();
+		seeker.setEmail("seeker@example.com");
+		seeker.setRole(Role.SEEKER);
+
+		when(userRepo.findByEmail("seeker@example.com")).thenReturn(Optional.of(seeker));
+
+		JobCreateRequest req = new JobCreateRequest();
+		req.setTitle("Python Developer");
+		req.setDescription("Backend role");
+		req.setLocation("Remote");
+		req.setSalary(new BigDecimal("70000"));
+
+		assertThrows(ForbiddenException.class, () -> jobService.createJob(req));
+	}
 }

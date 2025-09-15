@@ -23,10 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-/**
- * Unit tests for AuthServiceImpl.
- * Note: ADMIN account restriction is enforced in AuthController, not here.
- */
+
 @ExtendWith(MockitoExtension.class)
 class AuthServiceImplTest {
 
@@ -39,7 +36,7 @@ class AuthServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        // no global stubbing, tests stub what they need
+
     }
 
     @Test

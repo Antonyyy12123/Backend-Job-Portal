@@ -21,7 +21,6 @@ public class PasswordResetToken {
     @Column(name = "expires_at", nullable = false)
     private Instant expiresAt;
 
-    // Optional: track creation time
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
